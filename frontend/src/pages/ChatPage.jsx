@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import ChatList from '../components/ChatList';
 import ChatWindow from '../components/ChatWindow';
+import NewChatModal from '../components/NewChatModal';
 import { chatAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -77,7 +78,7 @@ const ChatPage = () => {
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-dark">Messages</h1>
             <button
-              onClick={() => setShowNewChat(!showNewChat)}
+              onClick={() => setShowNewChat(true)}
               className="p-2 hover:bg-light rounded-full transition"
               title="New chat"
             >
@@ -138,6 +139,13 @@ const ChatPage = () => {
           </div>
         )}
       </div>
+
+      {/* New Chat Modal */}
+      <NewChatModal
+        isOpen={showNewChat}
+        onClose={() => setShowNewChat(false)}
+        onChatCreated={handleNewChat}
+      />
     </div>
   );
 };

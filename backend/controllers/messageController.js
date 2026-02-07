@@ -16,6 +16,8 @@ const getMessages = async (req, res) => {
     const { limit = 50, skip = 0 } = req.query;
     const userId = req.userId;
 
+    console.log('getMessages called, chatId:', chatId, 'userId:', userId);
+
     // Verify user is part of chat
     const chat = await Chat.findById(chatId);
 
@@ -26,7 +28,11 @@ const getMessages = async (req, res) => {
       });
     }
 
-    if (!chat.users.includes(userId)) {
+    // Check if user is part of chat (convert to string for comparison)
+    const userInChat = chat.users.some(u => u.toString() === userId);
+    
+    if (!userInChat) {
+      console.log('User not in chat. Users:', chat.users, 'userId:', userId);
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this chat',
@@ -67,6 +73,8 @@ const sendMessage = async (req, res) => {
     const userId = req.userId;
     const { chatId, content } = req.body;
 
+    console.log('sendMessage called, userId:', userId, 'chatId:', chatId);
+
     if (!chatId || !content || !content.trim()) {
       return res.status(400).json({
         success: false,
@@ -84,8 +92,11 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    // Verify user is part of chat
-    if (!chat.users.includes(userId)) {
+    // Verify user is part of chat (convert to string for comparison)
+    const userInChat = chat.users.some(u => u.toString() === userId);
+    
+    if (!userInChat) {
+      console.log('User not in chat. Users:', chat.users, 'userId:', userId);
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this chat',
@@ -281,7 +292,10 @@ const markChatAsRead = async (req, res) => {
       });
     }
 
-    if (!chat.users.includes(userId)) {
+    // Verify user is part of chat (convert to string for comparison)
+    const userInChat = chat.users.some(u => u.toString() === userId);
+    
+    if (!userInChat) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this chat',

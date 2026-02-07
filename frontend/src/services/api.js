@@ -144,4 +144,18 @@ export const messageAPI = {
   deleteMessage: (messageId) => api.delete(`/messages/${messageId}`),
 };
 
+// ==================== User API ====================
+
+export const userAPI = {
+  /**
+   * Get all users except current user
+   */
+  getAllUsers: () => api.get('/users'),
+
+  /**
+   * Search users by username
+   */
+  searchUsers: (query) => api.get('/users/search', { params: { query } }),
+};
+
 export default api;

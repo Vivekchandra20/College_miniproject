@@ -55,6 +55,8 @@ const getOrCreateChat = async (req, res) => {
     const userId = req.userId;
     const { targetUserId } = req.body;
 
+    console.log('getOrCreateChat called, userId:', userId, 'targetUserId:', targetUserId);
+
     if (!targetUserId) {
       return res.status(400).json({
         success: false,
@@ -79,6 +81,7 @@ const getOrCreateChat = async (req, res) => {
       .populate('groupAdmin');
 
     if (chat) {
+      console.log('Chat already exists:', chat._id);
       return res.status(200).json({
         success: true,
         chat,
@@ -210,8 +213,10 @@ const addUserToGroup = async (req, res) => {
       });
     }
 
-    // Check if user already in group
-    if (chat.users.includes(targetUserId)) {
+    // Check if user already in group (convert to string for comparison)
+    const userAlreadyInGroup = chat.users.some(u => u.toString() === targetUserId);
+    
+    if (userAlreadyInGroup) {
       return res.status(400).json({
         success: false,
         message: 'User already in group',

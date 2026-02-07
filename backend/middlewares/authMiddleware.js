@@ -14,6 +14,8 @@ const authMiddleware = (req, res, next) => {
     // Get token from header
     const token = req.headers.authorization?.split(' ')[1];
 
+    console.log('Auth middleware called, token exists:', !!token);
+
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -23,11 +25,14 @@ const authMiddleware = (req, res, next) => {
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Token decoded successfully, userId:', decoded.userId);
+    
     req.userId = decoded.userId;
     req.userData = decoded;
 
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error.message);
     return res.status(401).json({
       success: false,
       message: 'Invalid or expired token',
@@ -51,5 +56,6 @@ const generateToken = (userId) => {
 
 module.exports = {
   authMiddleware,
+  protect: authMiddleware,
   generateToken,
 };
