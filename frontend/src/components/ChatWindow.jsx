@@ -32,13 +32,28 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
   const fetchMessages = async () => {
     try {
       setLoading(true);
+      console.log(`[ChatWindow] Fetching messages for chat: ${chat._id}`);
+      
       const response = await messageAPI.getMessages(chat._id, 50, 0);
+      console.log(`[ChatWindow] Messages fetched successfully:`, response.data.messages?.length || 0);
+      
       setMessages(response.data.messages || []);
 
       // Mark all as read
-      await messageAPI.markChatAsRead(chat._id);
+      try {
+        await messageAPI.markChatAsRead(chat._id);
+        console.log(`[ChatWindow] Chat marked as read: ${chat._id}`);
+      } catch (readError) {
+        console.warn('[ChatWindow] Failed to mark chat as read:', readError.response?.status, readError.response?.data?.message);
+      }
     } catch (error) {
-      console.error('Fetch messages error:', error);
+      console.error('[ChatWindow] Failed to fetch messages:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        error: error.message,
+      });
+      
+      alert(`Failed to load messages: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -131,15 +146,22 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
-    if (!input.trim() || !user) return;
+    if (!input.trim() || !user) {
+      console.warn('[ChatWindow] Cannot send message: input empty or user not set');
+      return;
+    }
 
     try {
+      console.log(`[ChatWindow] Sending message to chat: ${chat._id} | Content length: ${input.trim().length}`);
+      
       const response = await messageAPI.sendMessage({
         chatId: chat._id,
         content: input.trim(),
       });
 
       const message = response.data.message;
+      console.log(`[ChatWindow] Message sent successfully | ID: ${message._id}`);
+      
       setMessages((prev) => [...prev, message]);
       setInput('');
 
@@ -153,7 +175,15 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
       // Emit via socket
       messageEvents.sendMessage(chat._id, message, recipientIds);
     } catch (error) {
-      console.error('Send message error:', error);
+      console.error('[ChatWindow] Failed to send message:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        error: error.message,
+      });
+      
+      // Show user-friendly error
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to send message';
+      alert(`Error sending message: ${errorMsg}`);
     }
   };
 
@@ -162,12 +192,20 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
    */
   const handleDeleteMessage = async (messageId) => {
     try {
+      console.log(`[ChatWindow] Deleting message: ${messageId}`);
       await messageAPI.deleteMessage(messageId);
+      console.log(`[ChatWindow] Message deleted successfully: ${messageId}`);
+      
       setMessages((prev) =>
         prev.filter((msg) => msg._id !== messageId)
       );
     } catch (error) {
-      console.error('Delete message error:', error);
+      console.error('[ChatWindow] Failed to delete message:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        error: error.message,
+      });
+      alert(`Failed to delete message: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -176,14 +214,22 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
    */
   const handleEditMessage = async (messageId, newContent) => {
     try {
+      console.log(`[ChatWindow] Editing message: ${messageId}`);
       const response = await messageAPI.editMessage(messageId, newContent);
+      console.log(`[ChatWindow] Message edited successfully: ${messageId}`);
+      
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId ? response.data.message : msg
         )
       );
     } catch (error) {
-      console.error('Edit message error:', error);
+      console.error('[ChatWindow] Failed to edit message:', {
+        status: error.response?.status,
+        message: error.response?.data?.message,
+        error: error.message,
+      });
+      alert(`Failed to edit message: ${error.response?.data?.message || error.message}`);
     }
   };
 

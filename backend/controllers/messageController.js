@@ -9,6 +9,8 @@ const Chat = require('../models/Chat');
 /**
  * Get messages for a chat
  * GET /api/messages/:chatId
+ * 
+ * @requires Authorization header with Bearer JWT token
  */
 const getMessages = async (req, res) => {
   try {
@@ -16,29 +18,39 @@ const getMessages = async (req, res) => {
     const { limit = 50, skip = 0 } = req.query;
     const userId = req.userId;
 
-    console.log('getMessages called, chatId:', chatId, 'userId:', userId);
+    console.log(`[Messages] GET messages | Chat: ${chatId} | User: ${userId}`);
 
-    // Verify user is part of chat
+    // Verify chat exists
     const chat = await Chat.findById(chatId);
 
     if (!chat) {
+      console.warn(`[Messages] Chat not found: ${chatId}`);
       return res.status(404).json({
         success: false,
         message: 'Chat not found',
       });
     }
 
-    // Check if user is part of chat (convert to string for comparison)
-    const userInChat = chat.users.some(u => u.toString() === userId);
+    // Check if user is part of chat
+    // chat.users are populated as full User documents due to schema pre-hook
+    // so we need to access u._id for the comparison
+    const userInChat = chat.users.some(u => {
+      const chatUserId = u._id ? u._id.toString() : String(u);
+      return chatUserId === userId;
+    });
     
     if (!userInChat) {
-      console.log('User not in chat. Users:', chat.users, 'userId:', userId);
+      console.warn(`[Messages] User ${userId} not in chat ${chatId}`);
+      const userIds = chat.users.map(u => u._id ? u._id.toString() : String(u)).join(', ');
+      console.warn(`[Messages] Chat users: ${userIds}`);
+      console.warn(`[Messages] User ID type: ${typeof userId}, value: ${userId}`);
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this chat',
       });
     }
 
+    // Fetch messages
     const messages = await Message.find({ chat: chatId })
       .populate('sender', 'username email profilePic')
       .populate('readBy.user', 'username email')
@@ -48,6 +60,8 @@ const getMessages = async (req, res) => {
 
     const total = await Message.countDocuments({ chat: chatId });
 
+    console.log(`[Messages] Found ${messages.length} messages for chat ${chatId}`);
+
     res.status(200).json({
       success: true,
       messages: messages.reverse(),
@@ -55,11 +69,11 @@ const getMessages = async (req, res) => {
       hasMore: skip + parseInt(limit) < total,
     });
   } catch (error) {
-    console.error('Get messages error:', error);
+    console.error('[Messages] Get messages error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching messages',
-      error: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal error',
     });
   }
 };
@@ -67,14 +81,19 @@ const getMessages = async (req, res) => {
 /**
  * Send a message
  * POST /api/messages
+ * 
+ * @requires Authorization header with Bearer JWT token
+ * @body {string} chatId - Chat ID
+ * @body {string} content - Message content
  */
 const sendMessage = async (req, res) => {
   try {
     const userId = req.userId;
     const { chatId, content } = req.body;
 
-    console.log('sendMessage called, userId:', userId, 'chatId:', chatId);
+    console.log(`[Messages] POST message | Chat: ${chatId} | User: ${userId}`);
 
+    // Validate input
     if (!chatId || !content || !content.trim()) {
       return res.status(400).json({
         success: false,
@@ -86,17 +105,26 @@ const sendMessage = async (req, res) => {
     const chat = await Chat.findById(chatId);
 
     if (!chat) {
+      console.warn(`[Messages] Chat not found: ${chatId}`);
       return res.status(404).json({
         success: false,
         message: 'Chat not found',
       });
     }
 
-    // Verify user is part of chat (convert to string for comparison)
-    const userInChat = chat.users.some(u => u.toString() === userId);
+    // Verify user is part of chat
+    // chat.users are populated as full User documents due to schema pre-hook
+    // so we need to access u._id for the comparison
+    const userInChat = chat.users.some(u => {
+      const chatUserId = u._id ? u._id.toString() : String(u);
+      return chatUserId === userId;
+    });
     
     if (!userInChat) {
-      console.log('User not in chat. Users:', chat.users, 'userId:', userId);
+      console.warn(`[Messages] User ${userId} not in chat ${chatId}`);
+      const userIds = chat.users.map(u => u._id ? u._id.toString() : String(u)).join(', ');
+      console.warn(`[Messages] Chat users: ${userIds}`);
+      console.warn(`[Messages] User ID type: ${typeof userId}, value: ${userId}`);
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this chat',
@@ -118,16 +146,18 @@ const sendMessage = async (req, res) => {
     chat.lastMessage = message._id;
     await chat.save();
 
+    console.log(`[Messages] Message created successfully: ${message._id}`);
+
     res.status(201).json({
       success: true,
       message,
     });
   } catch (error) {
-    console.error('Send message error:', error);
+    console.error('[Messages] Send message error:', error);
     res.status(500).json({
       success: false,
       message: 'Error sending message',
-      error: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal error',
     });
   }
 };
@@ -195,7 +225,11 @@ const deleteMessage = async (req, res) => {
     }
 
     // Check if user is message sender
-    if (message.sender.toString() !== userId) {
+    // message.sender might be an ObjectId or populated User document
+    const senderId = message.sender._id ? message.sender._id.toString() : message.sender.toString();
+    
+    if (senderId !== userId) {
+      console.warn(`[Messages] User ${userId} attempted to delete message from ${senderId}`);
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own messages',
@@ -245,7 +279,11 @@ const editMessage = async (req, res) => {
     }
 
     // Check if user is message sender
-    if (message.sender.toString() !== userId) {
+    // message.sender might be an ObjectId or populated User document
+    const senderId = message.sender._id ? message.sender._id.toString() : message.sender.toString();
+    
+    if (senderId !== userId) {
+      console.warn(`[Messages] User ${userId} attempted to edit message from ${senderId}`);
       return res.status(403).json({
         success: false,
         message: 'You can only edit your own messages',
@@ -292,8 +330,13 @@ const markChatAsRead = async (req, res) => {
       });
     }
 
-    // Verify user is part of chat (convert to string for comparison)
-    const userInChat = chat.users.some(u => u.toString() === userId);
+    // Verify user is part of chat
+    // chat.users are populated as full User documents due to schema pre-hook
+    // so we need to access u._id for the comparison
+    const userInChat = chat.users.some(u => {
+      const chatUserId = u._id ? u._id.toString() : String(u);
+      return chatUserId === userId;
+    });
     
     if (!userInChat) {
       return res.status(403).json({

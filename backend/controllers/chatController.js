@@ -206,15 +206,22 @@ const addUserToGroup = async (req, res) => {
     }
 
     // Check if user is admin
-    if (chat.groupAdmin.toString() !== userId) {
+    // chat.groupAdmin is a populated User document
+    const adminId = chat.groupAdmin._id ? chat.groupAdmin._id.toString() : chat.groupAdmin.toString();
+    
+    if (adminId !== userId) {
       return res.status(403).json({
         success: false,
         message: 'Only group admin can add users',
       });
     }
 
-    // Check if user already in group (convert to string for comparison)
-    const userAlreadyInGroup = chat.users.some(u => u.toString() === targetUserId);
+    // Check if user already in group
+    // chat.users are populated as User documents
+    const userAlreadyInGroup = chat.users.some(u => {
+      const userId = u._id ? u._id.toString() : u.toString();
+      return userId === targetUserId;
+    });
     
     if (userAlreadyInGroup) {
       return res.status(400).json({
@@ -279,19 +286,22 @@ const removeUserFromGroup = async (req, res) => {
     }
 
     // Check if user is admin or removing themselves
-    if (
-      chat.groupAdmin.toString() !== userId &&
-      userId !== targetUserId
-    ) {
+    // chat.groupAdmin is a populated User document
+    const adminId = chat.groupAdmin._id ? chat.groupAdmin._id.toString() : chat.groupAdmin.toString();
+    
+    if (adminId !== userId && userId !== targetUserId) {
       return res.status(403).json({
         success: false,
         message: 'Only group admin can remove users',
       });
     }
 
-    chat.users = chat.users.filter(
-      (id) => id.toString() !== targetUserId
-    );
+    // Filter out the target user from the chat
+    // chat.users are populated as User documents
+    chat.users = chat.users.filter(u => {
+      const uId = u._id ? u._id.toString() : u.toString();
+      return uId !== targetUserId;
+    });
     await chat.save();
 
     const updatedChat = await Chat.findById(id)

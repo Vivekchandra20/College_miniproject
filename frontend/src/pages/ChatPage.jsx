@@ -11,7 +11,7 @@ import { chatAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const ChatPage = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -76,14 +76,26 @@ const ChatPage = () => {
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-dark">Messages</h1>
-            <button
-              onClick={() => setShowNewChat(true)}
-              className="p-2 hover:bg-light rounded-full transition"
-              title="New chat"
-            >
-              ✎
-            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-dark">Messages</h1>
+              <p className="text-xs text-gray-500 mt-1">{user?.username}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowNewChat(true)}
+                className="p-2 hover:bg-light rounded-full transition"
+                title="New chat"
+              >
+                ✎
+              </button>
+              <button
+                onClick={logout}
+                className="px-3 py-1.5 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+                title="Logout"
+              >
+                🚪
+              </button>
+            </div>
           </div>
 
           {/* Search Bar */}

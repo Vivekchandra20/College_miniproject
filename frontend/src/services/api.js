@@ -1,12 +1,17 @@
 /**
  * API Service
- * Handles all HTTP requests to the backend
+ * Handles all HTTP requests to the backend with JWT authentication
+ * 
+ * All requests automatically include JWT token from localStorage
  */
 
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+/**
+ * Create axios instance with default config
+ */
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -15,32 +20,69 @@ const api = axios.create({
 });
 
 /**
- * Request interceptor to add token to all requests
+ * Request interceptor
+ * Adds JWT token to Authorization header for all requests
+ * 
+ * Expected token storage: localStorage.getItem('authToken')
+ * Expected token format: JWT token string (without 'Bearer' prefix)
+ * 
+ * Header sent: Authorization: Bearer <JWT_TOKEN>
  */
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (token) {
+        // Add Bearer token to Authorization header
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log(`[API Request] ${config.method.toUpperCase()} ${config.url} | Token present: ${token.length > 20 ? 'Yes' : 'No'}`);
+      } else {
+        console.warn(`[API Request] ${config.method.toUpperCase()} ${config.url} | WARNING: No token found in localStorage`);
+      }
+      
+      return config;
+    } catch (error) {
+      console.error('[API Request] Interceptor error:', error);
+      return Promise.reject(error);
     }
-    return config;
   },
   (error) => {
+    console.error('[API Request] Request setup error:', error);
     return Promise.reject(error);
   }
 );
 
 /**
- * Response interceptor to handle token expiration
+ * Response interceptor
+ * Handles token expiration and error responses
  */
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`[API Response] ${response.status} ${response.config.method.toUpperCase()} ${response.config.url}`);
+    return response;
+  },
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const url = error.config?.url || 'Unknown';
+    const method = error.config?.method?.toUpperCase() || 'Unknown';
+    
+    console.error(`[API Error] ${status} ${method} ${url}`);
+    console.error('[API Error] Response:', error.response?.data);
+    
+    // Handle 401 Unauthorized - token invalid or expired
+    if (status === 401) {
+      console.warn('[API] Token expired or invalid. Redirecting to login...');
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
+    // Handle 403 Forbidden - user not authorized for this resource
+    if (status === 403) {
+      console.error('[API] Access forbidden. User may not have permission for this resource.');
+    }
+    
     return Promise.reject(error);
   }
 );
