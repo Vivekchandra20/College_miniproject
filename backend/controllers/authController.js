@@ -60,6 +60,7 @@ const registerUser = async (req, res) => {
         username: user.username,
         email: user.email,
         profilePic: user.profilePic,
+        publicKey: user.publicKey,
       },
     });
   } catch (error) {
@@ -126,6 +127,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         profilePic: user.profilePic,
         isOnline: user.isOnline,
+        publicKey: user.publicKey,
       },
     });
   } catch (error) {
@@ -190,6 +192,7 @@ const getCurrentUser = async (req, res) => {
         profilePic: user.profilePic,
         isOnline: user.isOnline,
         lastSeen: user.lastSeen,
+        publicKey: user.publicKey,
       },
     });
   } catch (error) {

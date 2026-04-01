@@ -5,6 +5,7 @@
 
 const Message = require('../models/Message');
 const Chat = require('../models/Chat');
+const User = require('../models/User');
 
 /**
  * Get messages for a chat
@@ -52,7 +53,7 @@ const getMessages = async (req, res) => {
 
     // Fetch messages
     const messages = await Message.find({ chat: chatId })
-      .populate('sender', 'username email profilePic')
+      .populate('sender', 'username email profilePic publicKey')
       .populate('readBy.user', 'username email')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
@@ -89,15 +90,40 @@ const getMessages = async (req, res) => {
 const sendMessage = async (req, res) => {
   try {
     const userId = req.userId;
-    const { chatId, content } = req.body;
+    const { chatId, content, encrypted } = req.body;
 
     console.log(`[Messages] POST message | Chat: ${chatId} | User: ${userId}`);
 
     // Validate input
-    if (!chatId || !content || !content.trim()) {
+    if (!chatId) {
       return res.status(400).json({
         success: false,
-        message: 'Chat ID and message content are required',
+        message: 'Chat ID is required',
+      });
+    }
+
+    const hasEncryptedPayload =
+      encrypted &&
+      typeof encrypted.cipherText === 'string' &&
+      typeof encrypted.nonce === 'string' &&
+      Array.isArray(encrypted.keys) &&
+      encrypted.keys.length > 0;
+
+    const hasValidKeyEntries = hasEncryptedPayload
+      ? encrypted.keys.every((entry) => entry.userId && entry.key && entry.keyNonce)
+      : true;
+
+    if (!hasEncryptedPayload && (!content || !content.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message content or encrypted payload is required',
+      });
+    }
+
+    if (hasEncryptedPayload && !hasValidKeyEntries) {
+      return res.status(400).json({
+        success: false,
+        message: 'Encrypted keys are invalid',
       });
     }
 
@@ -132,15 +158,32 @@ const sendMessage = async (req, res) => {
     }
 
     // Create message
+    let senderPublicKey = null;
+    if (hasEncryptedPayload) {
+      const sender = await User.findById(userId).select('publicKey');
+      senderPublicKey = sender?.publicKey || null;
+    }
+
     const message = await Message.create({
       sender: userId,
       chat: chatId,
-      content: content.trim(),
+      content: hasEncryptedPayload ? '' : content.trim(),
+      isEncrypted: hasEncryptedPayload,
+      senderPublicKey: hasEncryptedPayload ? senderPublicKey : null,
+      cipherText: hasEncryptedPayload ? encrypted.cipherText : null,
+      nonce: hasEncryptedPayload ? encrypted.nonce : null,
+      encryptedKeys: hasEncryptedPayload
+        ? encrypted.keys.map((entry) => ({
+            user: entry.userId,
+            key: entry.key,
+            keyNonce: entry.keyNonce,
+          }))
+        : [],
       readBy: [{ user: userId }],
     });
 
     // Populate sender info
-    await message.populate('sender', 'username email profilePic');
+    await message.populate('sender', 'username email profilePic publicKey');
 
     // Update last message in chat
     chat.lastMessage = message._id;
@@ -253,6 +296,54 @@ const deleteMessage = async (req, res) => {
 };
 
 /**
+ * Clear all messages in a chat
+ * DELETE /api/messages/chat/:chatId/clear
+ */
+const clearChatMessages = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.userId;
+
+    const chat = await Chat.findById(chatId);
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chat not found',
+      });
+    }
+
+    const userInChat = chat.users.some((u) => {
+      const chatUserId = u._id ? u._id.toString() : String(u);
+      return chatUserId === userId;
+    });
+
+    if (!userInChat) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this chat',
+      });
+    }
+
+    const result = await Message.deleteMany({ chat: chatId });
+    chat.lastMessage = null;
+    await chat.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Chat cleared',
+      deletedCount: result.deletedCount || 0,
+    });
+  } catch (error) {
+    console.error('Clear chat error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error clearing chat',
+    });
+  }
+};
+
+/**
  * Edit a message
  * PUT /api/messages/:id
  */
@@ -275,6 +366,13 @@ const editMessage = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Message not found',
+      });
+    }
+
+    if (message.isEncrypted) {
+      return res.status(400).json({
+        success: false,
+        message: 'Encrypted messages cannot be edited',
       });
     }
 
@@ -374,4 +472,5 @@ module.exports = {
   deleteMessage,
   editMessage,
   markChatAsRead,
+  clearChatMessages,
 };

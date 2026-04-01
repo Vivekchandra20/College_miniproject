@@ -10,6 +10,7 @@ const MessageItem = ({ message, isOwn, onDelete, onEdit }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
+  const canEdit = !message.isEncrypted;
 
   /**
    * Handle edit submit
@@ -89,13 +90,15 @@ const MessageItem = ({ message, isOwn, onDelete, onEdit }) => {
       {/* Actions */}
       {isOwn && isHovered && (
         <div className="flex space-x-1 ml-2 self-center">
-          <button
-            onClick={() => setIsEditing(true)}
-            className="text-gray-500 hover:text-primary text-sm transition"
-            title="Edit message"
-          >
-            ✎
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="text-gray-500 hover:text-primary text-sm transition"
+              title="Edit message"
+            >
+              ✎
+            </button>
+          )}
           <button
             onClick={() => onDelete(message._id)}
             className="text-gray-500 hover:text-red-500 text-sm transition"

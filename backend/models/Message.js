@@ -19,10 +19,41 @@ const messageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: [true, 'Message content cannot be empty'],
-      minlength: [1, 'Message cannot be empty'],
+      default: '',
       maxlength: [10000, 'Message cannot exceed 10000 characters'],
     },
+    isEncrypted: {
+      type: Boolean,
+      default: false,
+    },
+    senderPublicKey: {
+      type: String,
+      default: null,
+    },
+    cipherText: {
+      type: String,
+      default: null,
+    },
+    nonce: {
+      type: String,
+      default: null,
+    },
+    encryptedKeys: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        key: {
+          type: String,
+          required: true,
+        },
+        keyNonce: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
     readBy: [
       {
         user: {
@@ -53,12 +84,26 @@ const messageSchema = new mongoose.Schema(
 messageSchema.pre(/^find/, function (next) {
   this.populate({
     path: 'sender',
-    select: 'username email profilePic',
+    select: 'username email profilePic publicKey',
   }).populate({
     path: 'readBy.user',
     select: 'username email',
   });
   next();
+});
+
+messageSchema.pre('validate', function (next) {
+  if (!this.isEncrypted && !this.content) {
+    return next(new Error('Message content cannot be empty'));
+  }
+
+  if (this.isEncrypted) {
+    if (!this.cipherText || !this.nonce || !this.encryptedKeys || this.encryptedKeys.length === 0) {
+      return next(new Error('Encrypted message payload is incomplete'));
+    }
+  }
+
+  return next();
 });
 
 module.exports = mongoose.model('Message', messageSchema);

@@ -8,9 +8,10 @@ import ChatList from '../components/ChatList';
 import ChatWindow from '../components/ChatWindow';
 import NewChatModal from '../components/NewChatModal';
 import { chatAPI } from '../services/api';
+import { messageEvents, getSocket } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
 
-const ChatPage = () => {
+const ChatPage = ({ onOpenProfile }) => {
   const { user, logout } = useAuth();
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -18,6 +19,7 @@ const ChatPage = () => {
   const [error, setError] = useState(null);
   const [showNewChat, setShowNewChat] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   /**
    * Fetch all chats
@@ -42,6 +44,60 @@ const ChatPage = () => {
     fetchChats();
   }, []);
 
+  useEffect(() => {
+    const handleIncomingMessage = async (data) => {
+      if (!data?.chatId || !data?.message) {
+        return;
+      }
+
+      let exists = false;
+
+      setChats((prevChats) => {
+        const chatIndex = prevChats.findIndex((chat) => chat._id === data.chatId);
+
+        if (chatIndex === -1) {
+          exists = false;
+          return prevChats;
+        }
+
+        exists = true;
+        const updatedChat = {
+          ...prevChats[chatIndex],
+          lastMessage: data.message,
+          updatedAt: data.message.createdAt || prevChats[chatIndex].updatedAt,
+        };
+
+        const nextChats = prevChats.filter((_, index) => index !== chatIndex);
+        return [updatedChat, ...nextChats];
+      });
+
+      if (!exists) {
+        try {
+          const response = await chatAPI.getChatById(data.chatId);
+          if (response.data?.chat) {
+            setChats((prevChats) => [response.data.chat, ...prevChats]);
+          }
+        } catch (error) {
+          console.warn('[ChatPage] Failed to fetch chat for incoming message');
+        }
+      }
+
+      if (selectedChat?._id !== data.chatId) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [data.chatId]: (prev[data.chatId] || 0) + 1,
+        }));
+      }
+    };
+
+    messageEvents.onMessageReceived(handleIncomingMessage);
+
+    return () => {
+      const socket = getSocket();
+      socket.off('receive-message', handleIncomingMessage);
+    };
+  }, []);
+
   /**
    * Filter chats based on search
    */
@@ -58,6 +114,10 @@ const ChatPage = () => {
    */
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
+    setUnreadCounts((prev) => ({
+      ...prev,
+      [chat._id]: 0,
+    }));
   };
 
   /**
@@ -66,21 +126,48 @@ const ChatPage = () => {
   const handleNewChat = (newChat) => {
     setChats((prev) => [newChat, ...prev]);
     setSelectedChat(newChat);
+    setUnreadCounts((prev) => ({
+      ...prev,
+      [newChat._id]: 0,
+    }));
     setShowNewChat(false);
   };
 
+  const handleChatUpdated = (updatedChat) => {
+    if (!updatedChat?._id) {
+      return;
+    }
+
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat._id === updatedChat._id ? { ...chat, ...updatedChat } : chat
+      )
+    );
+
+    if (selectedChat?._id === updatedChat._id) {
+      setSelectedChat((prev) => ({ ...prev, ...updatedChat }));
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-light">
+    <div className="flex h-screen bg-[#fff4e6]">
       {/* Left Sidebar - Chat List */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-white/90 backdrop-blur border-r border-amber-100 flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-amber-100 bg-white">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold text-dark">Messages</h1>
               <p className="text-xs text-gray-500 mt-1">{user?.username}</p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={onOpenProfile}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-200 text-dark rounded-full hover:bg-light transition"
+                title="Profile"
+              >
+                Profile
+              </button>
               <button
                 onClick={() => setShowNewChat(true)}
                 className="p-2 hover:bg-light rounded-full transition"
@@ -104,7 +191,7 @@ const ChatPage = () => {
             placeholder="Search chats..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 bg-light rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full px-4 py-2 bg-light rounded-full focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
@@ -130,6 +217,7 @@ const ChatPage = () => {
                 isSelected={selectedChat?._id === chat._id}
                 onSelect={handleSelectChat}
                 currentUserId={user?.id}
+                unreadCount={unreadCounts[chat._id] || 0}
               />
             ))
           )}
@@ -139,7 +227,7 @@ const ChatPage = () => {
       {/* Right Side - Chat Window */}
       <div className="flex-1 bg-white">
         {selectedChat ? (
-          <ChatWindow chat={selectedChat} onChatUpdated={handleNewChat} />
+          <ChatWindow chat={selectedChat} onChatUpdated={handleChatUpdated} />
         ) : (
           <div className="h-full flex items-center justify-center text-gray-500">
             <div className="text-center">

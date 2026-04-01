@@ -16,7 +16,7 @@ const getAllChats = async (req, res) => {
     const userId = req.userId;
 
     let chats = await Chat.find({ users: userId })
-      .populate('users', 'username email profilePic isOnline lastSeen')
+      .populate('users', 'username email profilePic isOnline lastSeen publicKey')
       .populate('lastMessage')
       .populate('groupAdmin', 'username email')
       .sort({ updatedAt: -1 });
@@ -76,7 +76,7 @@ const getOrCreateChat = async (req, res) => {
       isGroupChat: false,
       users: { $all: [userId, targetUserId] },
     })
-      .populate('users', 'username email profilePic isOnline lastSeen')
+      .populate('users', 'username email profilePic isOnline lastSeen publicKey')
       .populate('lastMessage')
       .populate('groupAdmin');
 
@@ -103,7 +103,7 @@ const getOrCreateChat = async (req, res) => {
       isGroupChat: false,
     });
 
-    chat = await chat.populate('users', 'username email profilePic isOnline lastSeen');
+    chat = await chat.populate('users', 'username email profilePic isOnline lastSeen publicKey');
 
     res.status(201).json({
       success: true,
@@ -154,7 +154,7 @@ const createGroupChat = async (req, res) => {
     });
 
     const populatedChat = await Chat.findById(chat._id)
-      .populate('users', 'username email profilePic isOnline lastSeen')
+      .populate('users', 'username email profilePic isOnline lastSeen publicKey')
       .populate('groupAdmin', 'username email');
 
     res.status(201).json({
@@ -234,7 +234,7 @@ const addUserToGroup = async (req, res) => {
     await chat.save();
 
     const updatedChat = await Chat.findById(id)
-      .populate('users', 'username email profilePic isOnline lastSeen')
+      .populate('users', 'username email profilePic isOnline lastSeen publicKey')
       .populate('groupAdmin', 'username email');
 
     res.status(200).json({
@@ -305,7 +305,7 @@ const removeUserFromGroup = async (req, res) => {
     await chat.save();
 
     const updatedChat = await Chat.findById(id)
-      .populate('users', 'username email profilePic isOnline lastSeen')
+      .populate('users', 'username email profilePic isOnline lastSeen publicKey')
       .populate('groupAdmin', 'username email');
 
     res.status(200).json({
@@ -333,7 +333,7 @@ const getChatById = async (req, res) => {
     const userId = req.userId;
 
     const chat = await Chat.findById(id)
-      .populate('users', 'username email profilePic isOnline lastSeen')
+      .populate('users', 'username email profilePic isOnline lastSeen publicKey')
       .populate('lastMessage')
       .populate('groupAdmin', 'username email');
 

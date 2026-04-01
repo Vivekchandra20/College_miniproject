@@ -184,6 +184,11 @@ export const messageAPI = {
    * Delete a message
    */
   deleteMessage: (messageId) => api.delete(`/messages/${messageId}`),
+
+  /**
+   * Clear all messages in a chat
+   */
+  clearChat: (chatId) => api.delete(`/messages/chat/${chatId}/clear`),
 };
 
 // ==================== User API ====================
@@ -198,6 +203,16 @@ export const userAPI = {
    * Search users by username
    */
   searchUsers: (query) => api.get('/users/search', { params: { query } }),
+
+  /**
+   * Update current user's public key
+   */
+  updatePublicKey: (publicKey) => api.put('/users/public-key', { publicKey }),
+
+  /**
+   * Update user profile
+   */
+  updateProfile: (profilePic) => api.put('/users/profile', { profilePic }),
 };
 
 export default api;

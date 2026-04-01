@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ChatPage from './pages/ChatPage';
+import ProfilePage from './pages/ProfilePage';
 import './App.css';
 
 const AppContent = () => {
@@ -47,7 +48,11 @@ const AppContent = () => {
     );
   }
 
-  return <ChatPage />;
+  if (currentPage === 'profile') {
+    return <ProfilePage onBack={() => setCurrentPage('chat')} />;
+  }
+
+  return <ChatPage onOpenProfile={() => setCurrentPage('profile')} />;
 };
 
 function App() {

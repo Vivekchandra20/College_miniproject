@@ -21,7 +21,7 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
    * Fetch available users
    */
   useEffect(() => {
-    if (isOpen && mode === 'direct') {
+    if (isOpen) {
       fetchUsers();
     }
   }, [isOpen, mode]);
@@ -32,7 +32,11 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
       setError(null);
       const response = await userAPI.getAllUsers();
       console.log('Users fetched:', response.data);
-      setUsers(response.data.users || []);
+      const fetchedUsers = response.data.users || [];
+      const filteredUsers = user?.id
+        ? fetchedUsers.filter((u) => u._id !== user.id)
+        : fetchedUsers;
+      setUsers(filteredUsers);
     } catch (err) {
       console.error('Error fetching users:', err);
       console.error('Error response:', err.response?.data);
@@ -220,10 +224,63 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
               />
             </div>
 
-            {/* Pre-populate message */}
-            <p className="text-sm text-gray-500">
-              You can add members after creating the group. Start with a name to create the group.
+            {/* Members Selection */}
+            <p className="text-sm text-gray-600 mb-3">
+              Select members to add to the group
             </p>
+            <input
+              type="text"
+              placeholder="Search users by username..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary mb-3"
+              disabled={loading}
+            />
+
+            {loading && (
+              <p className="text-sm text-gray-500 text-center p-4">
+                Loading users...
+              </p>
+            )}
+
+            {!loading && users.length === 0 && (
+              <p className="text-sm text-gray-500 text-center p-4">
+                No users found. Create another account in a different browser to start chatting!
+              </p>
+            )}
+
+            {!loading && users.length > 0 && (
+              <div className="space-y-2 border border-gray-300 rounded-lg p-2 max-h-48 overflow-y-auto">
+                {users
+                  .filter((u) =>
+                    u.username.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((u) => (
+                    <label
+                      key={u._id}
+                      className="flex items-center p-2 hover:bg-light rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(u._id)}
+                        onChange={() => {
+                          setSelectedUsers((prev) =>
+                            prev.includes(u._id)
+                              ? prev.filter((id) => id !== u._id)
+                              : [...prev, u._id]
+                          );
+                        }}
+                        className="mr-2"
+                        disabled={loading}
+                      />
+                      <div>
+                        <p className="text-sm text-dark font-medium">{u.username}</p>
+                        <p className="text-xs text-gray-500">{u.email}</p>
+                      </div>
+                    </label>
+                  ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -249,7 +306,7 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
               onClick={() => {
                 handleCreateGroup({ preventDefault: () => {} });
               }}
-              disabled={loading || !groupName.trim()}
+              disabled={loading || !groupName.trim() || selectedUsers.length === 0}
               className="flex-1 px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? 'Creating...' : 'Create'}

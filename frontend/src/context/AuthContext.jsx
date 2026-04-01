@@ -4,8 +4,9 @@
  */
 
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, userAPI } from '../services/api';
 import { initializeSocket, leaveSocket, joinSocket } from '../services/socket';
+import { getOrCreateKeypair } from '../utils/e2ee';
 
 export const AuthContext = createContext();
 
@@ -23,10 +24,25 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('user');
 
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
       setIsAuthenticated(true);
       initializeSocket();
-      joinSocket(JSON.parse(storedUser).id);
+      joinSocket(parsedUser.id);
+
+      (async () => {
+        try {
+          const keypair = await getOrCreateKeypair(parsedUser.id);
+          if (parsedUser.publicKey !== keypair.publicKey) {
+            await userAPI.updatePublicKey(keypair.publicKey);
+            const updatedUser = { ...parsedUser, publicKey: keypair.publicKey };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
+        } catch (error) {
+          console.warn('[Auth] Failed to initialize E2EE keys');
+        }
+      })();
     }
 
     setLoading(false);
@@ -48,6 +64,18 @@ export const AuthProvider = ({ children }) => {
 
       initializeSocket();
       joinSocket(user.id);
+
+      try {
+        const keypair = await getOrCreateKeypair(user.id);
+        if (user.publicKey !== keypair.publicKey) {
+          await userAPI.updatePublicKey(keypair.publicKey);
+          const updatedUser = { ...user, publicKey: keypair.publicKey };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+      } catch (error) {
+        console.warn('[Auth] Failed to initialize E2EE keys');
+      }
 
       return { success: true, user };
     } catch (err) {
@@ -73,6 +101,18 @@ export const AuthProvider = ({ children }) => {
 
       initializeSocket();
       joinSocket(user.id);
+
+      try {
+        const keypair = await getOrCreateKeypair(user.id);
+        if (user.publicKey !== keypair.publicKey) {
+          await userAPI.updatePublicKey(keypair.publicKey);
+          const updatedUser = { ...user, publicKey: keypair.publicKey };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+      } catch (error) {
+        console.warn('[Auth] Failed to initialize E2EE keys');
+      }
 
       return { success: true, user };
     } catch (err) {

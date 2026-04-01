@@ -6,21 +6,25 @@
 import React from 'react';
 import { formatDate, getAvatarInitials, getAvatarColor, truncateText } from '../utils/helpers';
 
-const ChatList = ({ chat, isSelected, onSelect, currentUserId }) => {
+const ChatList = ({ chat, isSelected, onSelect, currentUserId, unreadCount = 0 }) => {
   // Get chat name
   const chatName = chat.isGroupChat
     ? chat.chatName
     : chat.users.find((user) => user._id !== currentUserId)?.username ||
       'Unknown User';
+  const otherUser = chat.users.find((user) => user._id !== currentUserId);
+  const avatarImage = chat.isGroupChat ? chat.groupPic : otherUser?.profilePic;
 
   // Get last message preview
   const lastMessage = chat.lastMessage;
+  const lastMessageText = lastMessage
+    ? lastMessage.isEncrypted && !lastMessage.content
+      ? 'Encrypted message'
+      : truncateText(lastMessage.content, 40)
+    : '';
   const lastMessagePreview = lastMessage
-    ? `${lastMessage.sender.username}: ${truncateText(lastMessage.content, 40)}`
+    ? `${lastMessage.sender.username}: ${lastMessageText}`
     : 'No messages yet';
-
-  // Get unread count (you can implement this based on your needs)
-  const unreadCount = 0;
 
   // Get avatar color
   const avatarColor = getAvatarColor(chatName);
@@ -38,9 +42,9 @@ const ChatList = ({ chat, isSelected, onSelect, currentUserId }) => {
           className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
           style={{ backgroundColor: avatarColor }}
         >
-          {chat.groupPic ? (
+          {avatarImage ? (
             <img
-              src={chat.groupPic}
+              src={avatarImage}
               alt={chatName}
               className="w-full h-full rounded-full object-cover"
             />
