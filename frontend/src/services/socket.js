@@ -87,6 +87,7 @@ export const messageEvents = {
   onMessageReceived: (callback) => {
     const socket = getSocket();
     socket.on('receive-message', callback);
+    return () => socket.off('receive-message', callback);
   },
 
   /**
@@ -107,6 +108,7 @@ export const messageEvents = {
   onReadReceipt: (callback) => {
     const socket = getSocket();
     socket.on('message-read-receipt', callback);
+    return () => socket.off('message-read-receipt', callback);
   },
 };
 
@@ -131,6 +133,7 @@ export const typingEvents = {
   onUserTyping: (callback) => {
     const socket = getSocket();
     socket.on('user-typing', callback);
+    return () => socket.off('user-typing', callback);
   },
 
   /**
@@ -150,6 +153,7 @@ export const typingEvents = {
   onUserStoppedTyping: (callback) => {
     const socket = getSocket();
     socket.on('user-stopped-typing', callback);
+    return () => socket.off('user-stopped-typing', callback);
   },
 };
 
@@ -162,6 +166,7 @@ export const userStatusEvents = {
   onUserOnline: (callback) => {
     const socket = getSocket();
     socket.on('user-online', callback);
+    return () => socket.off('user-online', callback);
   },
 
   /**
@@ -170,6 +175,7 @@ export const userStatusEvents = {
   onUserOffline: (callback) => {
     const socket = getSocket();
     socket.on('user-offline', callback);
+    return () => socket.off('user-offline', callback);
   },
 };
 
@@ -193,6 +199,7 @@ export const callEvents = {
   onIncomingCall: (callback) => {
     const socket = getSocket();
     socket.on('incoming-call', callback);
+    return () => socket.off('incoming-call', callback);
   },
 
   /**
@@ -212,6 +219,7 @@ export const callEvents = {
   onCallAccepted: (callback) => {
     const socket = getSocket();
     socket.on('call-accepted', callback);
+    return () => socket.off('call-accepted', callback);
   },
 
   /**
@@ -228,6 +236,7 @@ export const callEvents = {
   onCallRejected: (callback) => {
     const socket = getSocket();
     socket.on('call-rejected', callback);
+    return () => socket.off('call-rejected', callback);
   },
 };
 
@@ -251,6 +260,7 @@ export const webRTCEvents = {
   onIceCandidate: (callback) => {
     const socket = getSocket();
     socket.on('ice-candidate', callback);
+    return () => socket.off('ice-candidate', callback);
   },
 
   /**
@@ -270,6 +280,7 @@ export const webRTCEvents = {
   onOffer: (callback) => {
     const socket = getSocket();
     socket.on('offer', callback);
+    return () => socket.off('offer', callback);
   },
 
   /**
@@ -289,5 +300,6 @@ export const webRTCEvents = {
   onAnswer: (callback) => {
     const socket = getSocket();
     socket.on('answer', callback);
+    return () => socket.off('answer', callback);
   },
 };

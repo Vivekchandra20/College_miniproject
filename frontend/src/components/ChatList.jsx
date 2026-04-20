@@ -28,14 +28,16 @@ const ChatList = ({ chat, isSelected, onSelect, currentUserId }) => {
   return (
     <button
       onClick={() => onSelect(chat)}
-      className={`w-full p-4 border-b border-gray-100 text-left hover:bg-light transition ${
-        isSelected ? 'bg-light' : ''
+      className={`w-full rounded-xl p-3 text-left transition ${
+        isSelected
+          ? 'bg-slate-700/70 ring-1 ring-indigo-400/30'
+          : 'hover:bg-slate-800/90'
       }`}
     >
       <div className="flex items-center space-x-3">
         {/* Avatar */}
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+          className="h-11 w-11 flex-shrink-0 rounded-xl flex items-center justify-center text-white font-bold shadow-md"
           style={{ backgroundColor: avatarColor }}
         >
           {chat.groupPic ? (
@@ -52,12 +54,12 @@ const ChatList = ({ chat, isSelected, onSelect, currentUserId }) => {
         {/* Chat Info */}
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <h3 className="font-medium text-dark truncate">{chatName}</h3>
-            <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+            <h3 className="truncate text-sm font-semibold text-slate-100">{chatName}</h3>
+            <span className="ml-2 flex-shrink-0 text-[11px] text-slate-400">
               {lastMessage ? formatDate(lastMessage.createdAt) : ''}
             </span>
           </div>
-          <p className="text-sm text-gray-600 truncate">
+          <p className="truncate text-xs text-slate-400">
             {lastMessagePreview}
           </p>
         </div>

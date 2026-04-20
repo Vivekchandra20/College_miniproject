@@ -82,21 +82,22 @@ const LoginPage = ({ onSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary to-secondary flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-dark">Chat App</h1>
-          <p className="text-gray-600 mt-2">Secure Real-Time Messaging</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,_rgba(79,70,229,0.28),_transparent_40%),radial-gradient(circle_at_80%_80%,_rgba(34,197,94,0.22),_transparent_35%)]" />
+      <div className="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/90 p-8 shadow-2xl shadow-black/30 backdrop-blur-xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-textPrimary">Pulse Chat</h1>
+          <p className="mt-2 text-sm text-textSecondary">Secure messaging, built for focused conversations.</p>
         </div>
 
-        <h2 className="text-2xl font-bold text-center text-dark mb-8">
+        <h2 className="mb-8 text-center text-2xl font-semibold text-textPrimary">
           Welcome Back
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-dark mb-2">
+            <label className="mb-2 block text-sm font-medium text-slate-200">
               Email
             </label>
             <input
@@ -105,19 +106,19 @@ const LoginPage = ({ onSuccess }) => {
               value={formData.email}
               onChange={handleChange}
               placeholder="Enter your email"
-              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                errors.email ? 'border-red-500' : 'border-gray-300'
+              className={`w-full rounded-xl border bg-slate-800 px-4 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                errors.email ? 'border-rose-500' : 'border-slate-700'
               }`}
               disabled={loading}
             />
             {errors.email && (
-              <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+              <p className="mt-1 text-xs text-rose-400">{errors.email}</p>
             )}
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-dark mb-2">
+            <label className="mb-2 block text-sm font-medium text-slate-200">
               Password
             </label>
             <input
@@ -126,13 +127,13 @@ const LoginPage = ({ onSuccess }) => {
               value={formData.password}
               onChange={handleChange}
               placeholder="Enter your password"
-              className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                errors.password ? 'border-red-500' : 'border-gray-300'
+              className={`w-full rounded-xl border bg-slate-800 px-4 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                errors.password ? 'border-rose-500' : 'border-slate-700'
               }`}
               disabled={loading}
             />
             {errors.password && (
-              <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              <p className="mt-1 text-xs text-rose-400">{errors.password}</p>
             )}
           </div>
 
@@ -143,16 +144,16 @@ const LoginPage = ({ onSuccess }) => {
               id="rememberMe"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="mr-2"
+              className="mr-2 accent-indigo-600"
             />
-            <label htmlFor="rememberMe" className="text-sm text-gray-600">
+            <label htmlFor="rememberMe" className="text-sm text-slate-400">
               Remember me
             </label>
           </div>
 
           {/* Auth Error */}
           {authError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+            <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-rose-200">
               {authError}
             </div>
           )}
@@ -161,17 +162,17 @@ const LoginPage = ({ onSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary hover:bg-blue-600 text-white font-bold py-2 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-indigo-600 py-2.5 font-semibold text-white transition duration-200 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        <p className="text-center text-gray-600 mt-4">
+        <p className="mt-4 text-center text-sm text-slate-400">
           Don't have an account?{' '}
           <button
             onClick={() => onSuccess?.({ page: 'register' })}
-            className="text-primary hover:text-blue-600 font-medium"
+            className="font-medium text-indigo-400 transition hover:text-indigo-300"
           >
             Register
           </button>

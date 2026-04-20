@@ -7,17 +7,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { messageAPI } from '../services/api';
 import { messageEvents, typingEvents } from '../services/socket';
 import { useAuth } from '../context/AuthContext';
-import MessageItem from './MessageItem';
+import MessageBubble from './MessageBubble';
+import InputBox from './InputBox';
 import { formatTime, getAvatarColor, getAvatarInitials, debounce } from '../utils/helpers';
 
-const ChatWindow = ({ chat, onChatUpdated }) => {
+const ChatWindow = ({ chat, onBack }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
   const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
 
   /**
    * Scroll to bottom
@@ -68,7 +68,10 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
     // Listen for incoming messages
     const handleNewMessage = (data) => {
       if (data.chatId === chat._id) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => {
+          const alreadyExists = prev.some((msg) => msg._id === data.message?._id);
+          return alreadyExists ? prev : [...prev, data.message];
+        });
       }
     };
 
@@ -92,14 +95,16 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
       }
     };
 
-    messageEvents.onMessageReceived(handleNewMessage);
-    typingEvents.onUserTyping(handleUserTyping);
-    typingEvents.onUserStoppedTyping(handleUserStoppedTyping);
+    const unsubscribeMessage = messageEvents.onMessageReceived(handleNewMessage);
+    const unsubscribeTyping = typingEvents.onUserTyping(handleUserTyping);
+    const unsubscribeStopTyping = typingEvents.onUserStoppedTyping(handleUserStoppedTyping);
 
     scrollToBottom();
 
     return () => {
-      // Cleanup
+      unsubscribeMessage?.();
+      unsubscribeTyping?.();
+      unsubscribeStopTyping?.();
     };
   }, [chat._id]);
 
@@ -162,7 +167,10 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
       const message = response.data.message;
       console.log(`[ChatWindow] Message sent successfully | ID: ${message._id}`);
       
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => {
+        const alreadyExists = prev.some((msg) => msg._id === message._id);
+        return alreadyExists ? prev : [...prev, message];
+      });
       setInput('');
 
       // Stop typing indicator
@@ -243,12 +251,20 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
   const avatarColor = getAvatarColor(chatName);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Chat Header */}
-      <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+      <div className="border-b border-slate-700/60 bg-slate-900/80 p-4 backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="inline-flex rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm text-slate-200 transition hover:bg-slate-700 lg:hidden"
+              title="Back to chats"
+            >
+              Back
+            </button>
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-white font-bold shadow-md"
             style={{ backgroundColor: avatarColor }}
           >
             {chat.groupPic ? (
@@ -262,87 +278,69 @@ const ChatWindow = ({ chat, onChatUpdated }) => {
             )}
           </div>
           <div>
-            <h2 className="font-bold text-dark">{chatName}</h2>
+              <h2 className="text-base font-semibold text-slate-100">{chatName}</h2>
             {!chat.isGroupChat && otherUser && (
-              <p className="text-xs text-gray-500">
-                {isOnline ? '🟢 Online' : `Last seen ${formatTime(otherUser.lastSeen)}`}
+                <p className="text-xs text-slate-400">
+                  {isOnline ? 'Online' : `Last seen ${formatTime(otherUser.lastSeen)}`}
               </p>
             )}
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex space-x-2">
-          <button className="p-2 hover:bg-light rounded-full transition" title="Video call">
-            📞
-          </button>
-          <button className="p-2 hover:bg-light rounded-full transition" title="More options">
-            ⋮
-          </button>
+          <div className="flex space-x-2">
+            <button className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-700 hover:text-slate-100" title="Video call">
+              Call
+            </button>
+            <button className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-700 hover:text-slate-100" title="More options">
+              More
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-light">
-        {loading ? (
-          <div className="text-center text-gray-500 py-8">
-            Loading messages...
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            No messages yet. Start the conversation!
-          </div>
-        ) : (
-          messages.map((message) => (
-            <MessageItem
-              key={message._id}
-              message={message}
-              isOwn={message.sender._id === user?.id}
-              onDelete={handleDeleteMessage}
-              onEdit={handleEditMessage}
-            />
-          ))
-        )}
-        {typingUsers.length > 0 && (
-          <div className="text-xs text-gray-500 italic p-2">
-            {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+      <div className="flex-1 overflow-y-auto bg-slate-900/30 p-4 sm:p-5">
+        <div className="mx-auto w-full max-w-4xl space-y-3">
+          {loading ? (
+            <div className="rounded-xl border border-slate-700 bg-slate-800/70 py-6 text-center text-sm text-slate-400">
+              Loading messages...
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="rounded-xl border border-slate-700 bg-slate-800/70 py-6 text-center text-sm text-slate-400">
+              No messages yet. Start the conversation.
+            </div>
+          ) : (
+            messages.map((message) => (
+              <MessageBubble
+                key={message._id}
+                message={message}
+                isOwn={message.sender._id === user?.id}
+                onDelete={handleDeleteMessage}
+                onEdit={handleEditMessage}
+              />
+            ))
+          )}
+
+          {typingUsers.length > 0 && (
+            <div className="text-xs italic text-slate-400">
+              {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <button
-            type="button"
-            className="p-2 hover:bg-light rounded-full transition"
-            title="Add attachment"
-          >
-            📎
-          </button>
-          <input
-            type="text"
+      <div className="border-t border-slate-700/60 bg-slate-900/85 p-3 sm:p-4">
+        <div className="mx-auto w-full max-w-4xl">
+          <InputBox
             value={input}
             onChange={handleInputChange}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-2 bg-light rounded-full focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <button
-            type="button"
-            className="p-2 hover:bg-light rounded-full transition"
-            title="Send emoji"
-          >
-            😊
-          </button>
-          <button
-            type="submit"
+            onSubmit={handleSendMessage}
             disabled={!input.trim()}
-            className="px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
-            Send
-          </button>
-        </form>
+          />
+        </div>
       </div>
     </div>
   );
