@@ -19,6 +19,36 @@ const userRoutes = require("./routes/userRoutes");
 
 // Initialize Express app
 const app = express();
+app.set("trust proxy", 1);
+
+const DEFAULT_FRONTEND_URL = "https://messaging-frontend-412h.onrender.com";
+const DEFAULT_ALLOWED_ORIGINS = [
+  process.env.CLIENT_URL || DEFAULT_FRONTEND_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+
+const ALLOWED_ORIGINS = (
+  process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",")
+    : DEFAULT_ALLOWED_ORIGINS
+)
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow server-to-server and health checks without browser origin.
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("CORS origin not allowed"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+};
 
 // Create HTTP server from Express app
 const server = http.createServer(app);
@@ -26,9 +56,8 @@ const server = http.createServer(app);
 // Initialize Socket.IO with specific options
 const io = socketIO(server, {
   cors: {
-    // origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    origin: "*",
-    methods: ["GET", "POST"],
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   },
   transports: ["websocket", "polling"],
@@ -37,14 +66,8 @@ const io = socketIO(server, {
 // Middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
-
-app.use(
-  cors({
-    // origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    origin: "*",
-    credentials: true,
-  }),
-);
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Connect to database
 connectDB();
@@ -87,6 +110,11 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
+const PUBLIC_API_URL =
+  process.env.PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://messaging-backend-toob.onrender.com"
+    : `http://localhost:${PORT}`);
 
 server.listen(PORT, () => {
   console.log(`
@@ -94,8 +122,9 @@ server.listen(PORT, () => {
 ║  Real-Time Messaging Application Server    ║
 ╚════════════════════════════════════════════╝
 📱 Server running on port: ${PORT}
-🔗 API: http://localhost:${PORT}
-🌐 Client: ${process.env.CLIENT_URL || "http://localhost:5173"}
+🔗 API: ${PUBLIC_API_URL}
+🌐 Client: ${process.env.CLIENT_URL || DEFAULT_FRONTEND_URL}
+🛡️  Allowed Origins: ${ALLOWED_ORIGINS.join(", ")}
 🗂️  Environment: ${process.env.NODE_ENV || "development"}
   `);
 });
