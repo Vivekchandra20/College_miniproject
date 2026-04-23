@@ -21,10 +21,10 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
    * Fetch available users
    */
   useEffect(() => {
-    if (isOpen && mode === 'direct') {
+    if (isOpen) {
       fetchUsers();
     }
-  }, [isOpen, mode]);
+  }, [isOpen]);
 
   const fetchUsers = async () => {
     try {
@@ -63,11 +63,20 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
   };
 
   /**
+   * Toggle user selection for group members
+   */
+  const handleToggleGroupUser = (selectedUserId) => {
+    setSelectedUsers((prev) =>
+      prev.includes(selectedUserId)
+        ? prev.filter((id) => id !== selectedUserId)
+        : [...prev, selectedUserId]
+    );
+  };
+
+  /**
    * Handle group creation
    */
-  const handleCreateGroup = async (e) => {
-    e.preventDefault();
-
+  const handleCreateGroup = async () => {
     if (!groupName.trim()) {
       setError('Group name is required');
       return;
@@ -112,12 +121,20 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
     return null;
   }
 
+  const filteredUsers = users.filter((u) => {
+    const isNotCurrentUser = u._id !== user?.id;
+    const query = searchQuery.toLowerCase();
+    const byUsername = u.username?.toLowerCase().includes(query);
+    const byEmail = u.email?.toLowerCase().includes(query);
+    return isNotCurrentUser && (byUsername || byEmail);
+  });
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md max-h-96 flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl shadow-black/40">
         {/* Header with Mode Toggle */}
         <div className="mb-4">
-          <h2 className="text-2xl font-bold text-dark mb-4">New Chat</h2>
+          <h2 className="mb-4 text-2xl font-semibold text-slate-100">New Chat</h2>
           <div className="flex gap-2">
             <button
               onClick={() => {
@@ -126,8 +143,8 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
               }}
               className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
                 mode === 'direct'
-                  ? 'bg-primary text-white'
-                  : 'bg-light text-dark hover:bg-gray-300'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
               Direct Message
@@ -139,8 +156,8 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
               }}
               className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
                 mode === 'group'
-                  ? 'bg-primary text-white'
-                  : 'bg-light text-dark hover:bg-gray-300'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
               Group Chat
@@ -159,38 +176,34 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
               placeholder="Search users by username..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary mb-3"
+              className="mb-3 w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               disabled={loading}
             />
             
             {loading && (
-              <p className="text-sm text-gray-500 text-center p-4">
+              <p className="p-4 text-center text-sm text-slate-400">
                 Loading users...
               </p>
             )}
             
             {!loading && users.length === 0 && (
-              <p className="text-sm text-gray-500 text-center p-4">
+              <p className="p-4 text-center text-sm text-slate-400">
                 No users found. Create another account in a different browser to start chatting!
               </p>
             )}
             
             {!loading && users.length > 0 && (
-              <div className="space-y-2 border border-gray-300 rounded-lg p-2 max-h-48 overflow-y-auto">
-                {users
-                  .filter((u) =>
-                    u.username.toLowerCase().includes(searchQuery.toLowerCase())
-                  )
-                  .map((u) => (
+              <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-800/40 p-2">
+                {filteredUsers.map((u) => (
                     <button
                       key={u._id}
                       onClick={() => handleSelectUser(u)}
                       disabled={loading}
-                      className="w-full text-left p-3 hover:bg-light rounded-lg transition flex items-center justify-between disabled:opacity-50"
+                      className="flex w-full items-center justify-between rounded-lg p-3 text-left transition hover:bg-slate-700/70 disabled:opacity-50"
                     >
                       <div>
-                        <p className="font-medium text-dark">{u.username}</p>
-                        <p className="text-xs text-gray-500">{u.email}</p>
+                        <p className="font-medium text-slate-100">{u.username}</p>
+                        <p className="text-xs text-slate-400">{u.email}</p>
                       </div>
                       <span className={`w-3 h-3 rounded-full ${
                         u.isOnline ? 'bg-green-500' : 'bg-gray-400'
@@ -207,7 +220,7 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
           <div className="flex-1 overflow-y-auto mb-4">
             {/* Group Name */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-dark mb-2">
+              <label className="mb-2 block text-sm font-medium text-slate-200">
                 Group Name
               </label>
               <input
@@ -215,21 +228,71 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Enter group name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 disabled={loading}
               />
             </div>
 
-            {/* Pre-populate message */}
-            <p className="text-sm text-gray-500">
-              You can add members after creating the group. Start with a name to create the group.
-            </p>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm text-slate-300">Select members</p>
+              <p className="text-xs text-slate-400">
+                {selectedUsers.length} selected
+              </p>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search users by username or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={loading}
+            />
+
+            <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-800/40 p-2">
+              {loading ? (
+                <p className="p-3 text-sm text-slate-400">Loading users...</p>
+              ) : filteredUsers.length === 0 ? (
+                <p className="p-3 text-sm text-slate-400">No users found.</p>
+              ) : (
+                filteredUsers.map((u) => {
+                  const isSelected = selectedUsers.includes(u._id);
+
+                  return (
+                    <button
+                      key={u._id}
+                      type="button"
+                      onClick={() => handleToggleGroupUser(u._id)}
+                      className={`flex w-full items-center justify-between rounded-lg p-3 text-left transition ${
+                        isSelected
+                          ? 'border border-indigo-500/60 bg-indigo-500/20'
+                          : 'hover:bg-slate-700/70'
+                      }`}
+                    >
+                      <div>
+                        <p className="font-medium text-slate-100">{u.username}</p>
+                        <p className="text-xs text-slate-400">{u.email}</p>
+                      </div>
+                      <span
+                        className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                          isSelected
+                            ? 'bg-indigo-500 text-white'
+                            : 'bg-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {isSelected ? 'Added' : 'Add'}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+          <div className="mb-4 rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">
             {error}
           </div>
         )}
@@ -239,18 +302,16 @@ const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
           <button
             onClick={handleClose}
             disabled={loading}
-            className="flex-1 px-4 py-2 border border-gray-300 text-dark rounded-lg hover:bg-light transition disabled:opacity-50"
+            className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-slate-200 transition hover:bg-slate-700 disabled:opacity-50"
           >
             Cancel
           </button>
 
           {mode === 'group' && (
             <button
-              onClick={() => {
-                handleCreateGroup({ preventDefault: () => {} });
-              }}
-              disabled={loading || !groupName.trim()}
-              className="flex-1 px-4 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              onClick={handleCreateGroup}
+              disabled={loading || !groupName.trim() || selectedUsers.length === 0}
+              className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create'}
             </button>
